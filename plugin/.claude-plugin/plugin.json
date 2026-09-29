@@ -1,0 +1,8 @@
+{
+  "name": "jev-router",
+  "version": "0.1.0",
+  "description": "JEV Router status/explain skills for sessions routed by a local jev-routerd. UX only: interception is handled by the daemon+env contract, not by this plugin.",
+  "author": { "name": "jev-router" },
+  "skills": "./skills",
+  "hooks": "./hooks/hooks.json"
+}

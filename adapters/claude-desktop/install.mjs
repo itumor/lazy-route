@@ -72,9 +72,9 @@ async function main() {
   mkdirSync(claudeDir, { recursive: true })
   let backupPath = null
   try {
-    copyFileSync(settingsPath, `${settingsPath}.bak.${Date.now()}`)
     backupPath = `${settingsPath}.bak.${Date.now()}`
-  } catch { /* no existing settings to back up */ }
+    copyFileSync(settingsPath, backupPath)
+  } catch { backupPath = null /* no existing settings to back up */ }
 
   writeFileSync(settingsPath, JSON.stringify(next, null, 2) + '\n')
   console.log(`${flags.uninstall ? 'Removed JEV keys from' : 'Installed JEV env into'} ${settingsPath}${backupPath ? ` (backup: ${backupPath})` : ''}`)

@@ -115,8 +115,9 @@ Config file: `${JEV_CONFIG || ~/.jev/router.json}` (JSON, deep-merged over defau
 ```
 
 Threshold policy (deterministic, lives in core/policy.mjs, unit-tested):
-weighted aggregate `S = Σ weight_i · signal_i` with booleans contributing as 0/1;
-tier = S < 0.25 ? haiku : S < 0.5 ? sonnet : S < 0.75 ? opus : fable,
+weighted aggregate `S = Σ w_i · s_i / Σ w_i` (reversibility inverted);
+tier = S < 0.12 ? haiku : S < 0.45 ? sonnet : S < 0.75 ? opus : fable
+(calibrated in tests: trivial ≈0.04–0.11, moderate ≈0.19, frontier ≈0.93),
 with overrides: `high_stakes || novelty ≥ 0.8` lifts tier to ≥ opus; `long_horizon && execution_depth ≥ 0.8` lifts to fable;
 effort = clamp(tierIndex + adjustment, low..max) where adjustment comes from execution_depth/long_horizon — documented precisely by the core author with tests pinning the matrix.
 

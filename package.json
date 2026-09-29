@@ -1,5 +1,5 @@
 {
-  "name": "jev-router",
+  "name": "lazy-route",
   "version": "0.1.0",
   "description": "Local model+effort routing sidecar: questionnaire-driven tier/effort selection with a loopback proxy and adapters for Claude CLI, Claude Code Desktop, Codex, and DeepSeek Harness.",
   "type": "module",

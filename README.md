@@ -1,4 +1,4 @@
-# jev-router
+# lazy-route
 
 **Local model + effort routing sidecar.** Every fresh user turn is classified
 by the JEV questionnaire into a capability tier
@@ -9,6 +9,11 @@ the cheapest sufficient model before it reaches the provider.
 The router can never break your session: every interception has a deterministic
 local heuristic fallback, every URL is configurable (including **local models**),
 and credentials are forwarded, never stored.
+
+> **aka `jev-router`.** The product/repo name is lazy-route; the internal
+> prefix stays `jev` (`JEV_*` env vars, `~/.jev/router.json`, the
+> `jev-routerd` daemon, `/jev/status` endpoints) so existing setups, scripts,
+> and docs keep working unchanged.
 
 ```
 Prompt ──► JEV Router ──► { model_tier, effort } ──► provider

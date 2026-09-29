@@ -6,13 +6,16 @@
 // (ctx, harness, console) and Services fetched with ctx.get().
 //
 // What it does:
-//   1. Listens to the `agent/request` waterfall: on step 0 of every turn,
-//      if the agent's current route is the kimchi provider, asks a cheap
-//      "brain" model (glm-5.3-flash) to classify the fresh user prompt into
-//      {tier: haiku|sonnet|opus|fable, effort: low|medium|high|xhigh|max},
-//      then replaces the call config's model + reasoningEffort accordingly.
-//   2. Registers a dynamic model Tool `jev_route` so the agent can request
-//      an explicit routing decision or inspect the last decisions.
+//   1. Caches fresh user prompts from TWO sources — `agent/inbox/inserted`
+//      (interactive sessions) and the `agent/pre-step` waterfall (one-shot
+//      subagents whose prompt arrives via start spec, not the inbox).
+//   2. Listens to the `agent/request` waterfall: on the FIRST model call of
+//      every turn (step numbering is runtime-defined, so "first" is tracked
+//      per agent+turn), if the agent's route is a gated provider (kimchi),
+//      asks a cheap brain model (glm-5.3-flash) to classify the prompt into
+//      {tier: haiku|sonnet|opus|fable, effort: low..max}, then replaces the
+//      call config's model + reasoningEffort accordingly.
+//   3. Registers a dynamic model Tool `jev_route` (modes: route/last/config/trace).
 //
 // Failure policy: any error during routing leaves the original call config
 // untouched — the router can never break the agent loop.
@@ -21,10 +24,10 @@ export default function plugin() {
   const PROVIDER_GATE = ['kimchi'] // providers whose calls JEV may re-route
   const BRAIN = { provider: 'kimchi', model: 'glm-5.3-flash' } // cheap, 7/7 on the local benchmark
   const TIER_MODELS = {
-    haiku: 'glm-5.3-flash',      // $0.50/1M out, perfect score — the default
+    haiku: 'glm-5.3-flash',         // $0.50/1M out, perfect score — the default
     sonnet: 'nemotron-3-ultra-fp4', // $2.20, 334 t/s, 7/7 — normal production work
-    opus: 'glm-5.3',             // $4.00, quality anchor — deep reasoning
-    fable: 'kimi-k3',            // $14.25, deepest reasoning — exceptional long-horizon
+    opus: 'glm-5.3',                // $4.00, quality anchor — deep reasoning
+    fable: 'kimi-k3',               // $14.25, deepest reasoning — exceptional long-horizon
   }
   const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
 
@@ -42,6 +45,8 @@ export default function plugin() {
 
   const lastUserTextByAgent = new Map() // agentId -> { turn, text }
   const recentDecisions = []            // ring buffer, cap 25
+  const recentRequests = []             // observability ring buffer, cap 25
+  const processedTurns = new Map()      // agentId -> Set(turn numbers already considered)
   let routingInFlight = false
 
   function extractText(content) {
@@ -49,9 +54,20 @@ export default function plugin() {
     let out = ''
     for (const block of content) {
       if (block && block.type === 'text' && typeof block.text === 'string') out += (out ? '\n' : '') + block.text
-      else if (block && block.type === 'tool-result') continue
     }
     return out
+  }
+
+  function lastUserText(messages) {
+    if (!Array.isArray(messages)) return ''
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m && m.role === 'user') {
+        const text = extractText(m.content)
+        if (text) return text
+      }
+    }
+    return ''
   }
 
   function parseDecision(raw) {
@@ -120,6 +136,22 @@ export default function plugin() {
     if (recentDecisions.length > 25) recentDecisions.shift()
   }
 
+  function trace(record) {
+    recentRequests.push({ at: Date.now(), ...record })
+    if (recentRequests.length > 25) recentRequests.shift()
+  }
+
+  // True exactly once per (agent, turn): the first agent/request we see for a
+  // turn is routing-eligible regardless of runtime step numbering.
+  function markTurnProcessed(agentId, turn) {
+    let seen = processedTurns.get(agentId)
+    if (!seen) { seen = new Set(); processedTurns.set(agentId, seen) }
+    if (seen.has(turn)) return false
+    seen.add(turn)
+    if (seen.size > 200) seen.clear() || seen.add(turn) // bounded memory, lose history only
+    return true
+  }
+
   return {
     apply(ctx) {
       const llm = ctx.get('llm')
@@ -128,8 +160,7 @@ export default function plugin() {
         return
       }
 
-      // Cache fresh user prompts per agent/turn so the request waterfall
-      // (whose payload has no messages) can see what it is routing.
+      // Prompt-text source #1: live inbox inserts (interactive sessions).
       ctx.on('agent/inbox/inserted', (payload) => {
         try {
           const text = extractText(payload.message && payload.message.content)
@@ -137,28 +168,46 @@ export default function plugin() {
         } catch (err) { console.error('jev: inbox cache failed', err) }
       })
 
-      // The actual interception: replace frozen call config on turn starts.
+      // Prompt-text source #2: pre-step waterfall. Must always return next().
+      ctx.on('agent/pre-step', async (payload, next) => {
+        try {
+          const text = lastUserText(payload.messages)
+          if (text) lastUserTextByAgent.set(String(payload.agent.id), { turn: payload.turn, text })
+        } catch (err) { console.error('jev: pre-step cache failed', err) }
+        return next()
+      })
+
+      // The actual interception: replace frozen call config on the first call of each turn.
       ctx.on('agent/request', async (payload, next) => {
         const config = await next()
+        const agentId = String(payload.agent.id)
+        const base = { agentId, provider: config.provider, model: config.model, turn: payload.turn, step: payload.step }
         try {
-          if (payload.step !== 0) return config
-          if (!PROVIDER_GATE.includes(config.provider)) return config
+          if (!PROVIDER_GATE.includes(config.provider) || !markTurnProcessed(agentId, payload.turn)) {
+            trace({ ...base, routed: false })
+            return config
+          }
           if (routingInFlight) return config
-          const cached = lastUserTextByAgent.get(String(payload.agent.id))
-          const text = cached && (cached.turn === payload.turn ? cached.text : cached.text)
-          if (!text) return config
+          const cached = lastUserTextByAgent.get(agentId)
+          const text = cached && cached.text
+          if (!text) {
+            trace({ ...base, routed: false, note: 'no-prompt-text' })
+            return config
+          }
           routingInFlight = true
           const decision = await decide(llm, text, payload.signal)
           routingInFlight = false
           const reasoningEffort = await mapEffort(llm, decision.model, decision.effort)
-          remember(payload.agent.id, { ...decision, provider: BRAIN.provider })
-          console.log('jev: routed', decision.tier, decision.effort, '→', decision.model, '|', decision.reason)
+          remember(agentId, { ...decision, provider: BRAIN.provider })
+          trace({ ...base, routed: true, tier: decision.tier, effort: decision.effort, to: decision.model })
+          console.log('jev: routed', decision.tier, decision.effort, '->', decision.model, '|', decision.reason)
           const nextConfig = { ...config, model: decision.model }
           if (reasoningEffort !== undefined) nextConfig.reasoningEffort = reasoningEffort
           return nextConfig
         } catch (err) {
           routingInFlight = false
           console.error('jev: routing failed, keeping original route', err)
+          trace({ ...base, routed: false, note: 'error', error: String(err && err.message || err).slice(0, 200) })
           return config
         }
       })
@@ -166,12 +215,12 @@ export default function plugin() {
       // Explicit model-visible router tool.
       const tool = harness.defineTool({
         name: 'jev_route',
-        description: 'Ask the JEV Router to classify a task into capability tier (haiku/sonnet/opus/fable), effort (low..max), and the concrete kimchi model it maps to. Use before delegating work to pick the cheapest sufficient route. mode "route" needs task; "last" returns recent decisions; "config" returns the routing table.',
+        description: 'Ask the JEV Router to classify a task into capability tier (haiku/sonnet/opus/fable), effort (low..max), and the concrete kimchi model it maps to. Use before delegating work to pick the cheapest sufficient route. mode "route" needs task; "last" returns recent decisions; "config" returns the routing table; "trace" shows recently observed call configs.',
         parameters: { // note: parameter root must stay open (DSH constraint)
           type: 'object',
           properties: {
             task: { type: 'string', description: 'The task/prompt to classify (required for mode "route").' },
-            mode: { type: 'string', enum: ['route', 'last', 'config'], description: 'route a task, show recent decisions, or show the routing table. Default: route.' },
+            mode: { type: 'string', enum: ['route', 'last', 'config', 'trace'], description: 'route a task, show recent decisions, show the routing table, or trace observed calls. Default: route.' },
           },
           required: [],
         },
@@ -190,6 +239,9 @@ export default function plugin() {
           if (mode === 'last') {
             return { decisions: recentDecisions.slice(-10) }
           }
+          if (mode === 'trace') {
+            return { requests: recentRequests.slice(-15) }
+          }
           if (typeof a.task !== 'string' || a.task.length === 0) {
             return { error: 'mode "route" requires a non-empty "task" string' }
           }
@@ -205,7 +257,7 @@ export default function plugin() {
       })
       harness.registerTool(ctx, tool)
 
-      console.log('jev: DSH router active — kimchi calls will be classified into', Object.keys(TIER_MODELS).join('/'))
+      console.log('jev: DSH router active - kimchi calls classified into', Object.keys(TIER_MODELS).join('/'))
     },
   }
 }

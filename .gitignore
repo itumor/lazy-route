@@ -7,3 +7,9 @@ coverage/
 dist/
 /tmp/
 router.local.json
+
+# npm global-install stubs (machine-local symlinks into ../lib/node_modules)
+/bin/jev-routerd
+/bin/jev-claude
+/bin/jev-codex
+/bin/jev-explain

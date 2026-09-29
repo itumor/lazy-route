@@ -18,6 +18,17 @@ Prompt ──► JEV Router ──► { model_tier, effort } ──► provider
              └─ chain      jev with heuristic fallback (default)
 ```
 
+## Claude compatibility (verified against real `claude` 2.1.278)
+
+Real-binary testing found Claude Code substitutes *catalog* models before
+dispatch — a bare `jev-router` alias does not reach the wire headlessly.
+**Working mode**: alias the real model ids you use
+(`JEV_ALIAS_MODELS="claude-opus-4-5,claude-sonnet-4-5,claude-haiku-4-5-20251001"`)
+and every turn gets re-routed. Verified: subscription default `opus-4-5` was
+rewritten to `haiku-4-5` on the wire for a trivial prompt; client-sent
+`thinking` blocks are preserved by design. Full notes:
+`docs/CLAUDE-REAL-BINARY-NOTES.md`. Desktop picker behavior is untested.
+
 ## Quickstart
 
 ```bash

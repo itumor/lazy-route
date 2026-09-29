@@ -46,6 +46,13 @@ async function main() {
     return
   }
 
+  if (!process.env.JEV_ALIAS_MODELS && !process.env.JEV_CONFIG) {
+    // Claude Code >= 2.1.278 substitutes catalog models before dispatch, so the
+    // literal alias "jev-router" may never reach the wire headlessly. Aliasing
+    // the REAL model ids is the proven path (docs/CLAUDE-REAL-BINARY-NOTES.md).
+    console.error('jev: HINT — JEV_ALIAS_MODELS is unset. For guaranteed interception in this Claude Code version, set it to the real model ids you use, e.g. JEV_ALIAS_MODELS="claude-opus-4-5,claude-sonnet-4-5,claude-haiku-4-5-20251001"')
+  }
+
   try {
     const { started } = await ensureDaemon({ host, port, autoSpawn: !flags.has('--no-spawn'), env: process.env })
     if (started) console.error(`jev: started jev-routerd on http://${host}:${port}`)

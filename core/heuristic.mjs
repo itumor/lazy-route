@@ -17,6 +17,7 @@ const KW = {
     /\bbrowser\b/i, /\bdeploy/i, /\brun\b/i, /\bexec(ute|ution)?\b/i, /\bcommit\b/i, /\bgit\b/i,
     /\bcurl\b/i, /\bserver\b/i, /\bcloud\b/i, /\bCI\/CD\b/i, /\btest(s|ing)?\b/i, /\bbuild\b/i,
     /\bcode(base)?\b/i, /\bdebug/i, /\bimplement/i, /\brefactor/i, /\bwrite\b/i, /\bcreat(e|ing)\b/i,
+    /\brewrite\b/i,
   ],
   longHorizon: [
     /\bend[- ]to[- ]end\b/i, /\bcontinu(e|ous|ing)\b/i, /\bautonom/i, /\bfrom\s+a\s+to\s+z\b/i,
@@ -36,11 +37,13 @@ const KW = {
     /\bdistributed\s+systems?\b/i, /\bconsensus\b/i, /\bcompilers?\b/i, /\bkernel\b/i,
     /\bcryptograph/i, /\bzero[- ]knowledge\b/i, /\bbyzantine\b/i, /\bquant/i, /\bmarket[- ]data\b/i,
     /\border\s+book\b/i, /\bbacktest/i, /\bformal\s+verif/i, /\bCRDTs?\b/i, /\blatency\b/i,
+    /\bcredentials?\b/i, /\bOAuth\b/i, /\bTLS\b/i, /\bfailover\b/i, /\bHA\b/i,
   ],
   complexity: [
     /\bentire\b/i, /\bcomplete\b.*\bsystem\b/i, /\bmulti[- ]?(service|step|stage|system)\b/i,
     /\brequirements\s+gathering\b/i, /\broot[- ]cause\b/i, /\barchitecture\b/i, /\brunbooks?\b/i,
     /\bportfolio\b/i, /\binfrastructure\b/i, /\bobservability\b/i, /\brepeated\s+tool\b/i,
+    /\brotation\b/i, /zero[- ]downtime/i, /\bservices?\b/i, /\brollouts?\b/i,
   ],
 }
 

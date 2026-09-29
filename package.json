@@ -1,0 +1,22 @@
+{
+  "name": "jev-router",
+  "version": "0.1.0",
+  "description": "Local model+effort routing sidecar: questionnaire-driven tier/effort selection with a loopback proxy and adapters for Claude CLI, Claude Code Desktop, Codex, and DeepSeek Harness.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "jev-routerd": "daemon/jev-routerd.mjs",
+    "jev-claude": "adapters/claude-cli/jev-claude.mjs",
+    "jev-codex": "adapters/codex/jev-codex.mjs",
+    "jev-explain": "bin/jev-explain.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/",
+    "test:core": "node --test tests/core.test.mjs",
+    "test:daemon": "node --test tests/daemon.test.mjs",
+    "test:adapters": "node --test tests/adapters.test.mjs"
+  }
+}

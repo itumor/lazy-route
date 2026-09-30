@@ -18,9 +18,10 @@ and credentials are forwarded, never stored.
 ```
 Prompt ──► JEV Router ──► { model_tier, effort } ──► provider
              │
-             ├─ heuristic  local, deterministic, offline
-             ├─ jev        LLM call to ANY OpenAI-compatible endpoint
-             └─ chain      jev with heuristic fallback (default)
+             ├─ heuristic   local, deterministic, offline
+             ├─ jev         LLM call to ANY OpenAI-compatible endpoint
+             ├─ systemone   local decision model (Ollama Nimble / Tev1, POST /v1/systemone)
+             └─ chain       configured brain with heuristic fallback (default)
 ```
 
 ## Claude compatibility (verified against real `claude` 2.1.278)
@@ -88,11 +89,36 @@ Everything is overridable via env, flags, or `~/.jev/router.json`:
 |-------------------|--------------------|------------------------------|
 | Routing brain URL | `JEV_API_URL`      | `https://api.jev.dev/v1`     |
 | Brain model       | `JEV_MODEL`        | `jev-router`                 |
+| System One brain URL   | `JEV_SYSTEMONE_URL`   | `http://localhost:11434`  |
+| System One brain model | `JEV_SYSTEMONE_MODEL` | `nimble`                  |
+| Chain brain pick  | `JEV_BRAIN`        | `jev` (`jev`/`systemone`)    |
 | Upstream (routed-to) | `JEV_UPSTREAM_URL` | `https://api.anthropic.com`  |
-| Strategy          | `JEV_STRATEGY`     | `chain` (`jev`/`heuristic`)  |
+| Strategy          | `JEV_STRATEGY`     | `chain` (`jev`/`systemone`/`heuristic`) |
 | Tier → model map  | `JEV_TIER_HAIKU` … | see `docs/ARCHITECTURE.md`   |
 
-Route with a **local model** as the brain (Ollama example):
+## Local decision models as the brain (Ollama System One)
+
+Ollama 0.35+ serves **decision models** — Nimble 9B (Bespoke Labs) and Tev1
+4B/0.8B — on `POST /v1/systemone`, an implementation of the *same Jev question
+API this router's questionnaire already uses*. The questionnaire is sent
+verbatim: you get back typed answers (`choice`/`score`/`noul`) with
+probabilities in one local call, typically **<100 ms warm, no API key, no
+free-text JSON parsing**. `core/policy.mjs` still owns the final tier/effort —
+the decision model supplies evidence, policy decides.
+
+```bash
+ollama pull nimble          # needs Ollama 0.35+
+JEV_BRAIN=systemone node daemon/jev-routerd.mjs
+```
+
+or in `~/.jev/router.json`:
+
+```json
+{ "router": { "brain": "systemone" }, "systemone": { "model": "nimble" } }
+```
+
+Pin the brain with no fallback via `JEV_STRATEGY=systemone`. A **generic local
+chat model** still works too, via the OpenAI-compatible brain:
 
 ```json
 // ~/.jev/router.json

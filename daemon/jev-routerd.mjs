@@ -14,8 +14,11 @@ Options:
   --host <h>             listen host (env JEV_HOST, default 127.0.0.1 — loopback only)
   --jev-url <url>        routing-brain base URL, e.g. http://localhost:11434/v1 for Ollama
   --jev-model <model>    brain model name at that URL
+  --systemone-url <url>  System One brain base URL (env JEV_SYSTEMONE_URL, default http://localhost:11434)
+  --systemone-model <m>  System One decision model (env JEV_SYSTEMONE_MODEL, default nimble)
+  --brain <b>            brain used by --strategy chain: jev | systemone (env JEV_BRAIN, default jev)
   --upstream-url <url>   upstream provider base URL (default https://api.anthropic.com)
-  --strategy <s>         chain | jev | heuristic (default chain)
+  --strategy <s>         chain | jev | systemone | heuristic (default chain)
   --help, -h
 
 Config precedence: defaults < config file < env (JEV_*) < flags.
@@ -65,8 +68,11 @@ async function main() {
   put(['daemon', 'host'], flags.host)
   put(['jev', 'url'], flags['jev-url'])
   put(['jev', 'model'], flags['jev-model'])
+  put(['systemone', 'url'], flags['systemone-url'])
+  put(['systemone', 'model'], flags['systemone-model'])
   put(['upstream', 'url'], flags['upstream-url'])
   put(['router', 'strategy'], flags.strategy)
+  put(['router', 'brain'], flags.brain)
 
   let config
   try {
@@ -83,7 +89,8 @@ async function main() {
     console.error(`jev-routerd: failed to listen on ${config.daemon.host}:${config.daemon.port}: ${err.message}`)
     process.exit(1)
   }
-  console.log(`jev-routerd listening on http://${daemon.host}:${daemon.port} (strategy=${config.router.strategy}, upstream=${config.upstream.url}, brain=${config.jev.url})`)
+  const brainUrl = config.router.brain === 'systemone' ? `${config.systemone.url}/v1/systemone` : config.jev.url
+  console.log(`jev-routerd listening on http://${daemon.host}:${daemon.port} (strategy=${config.router.strategy}, brain=${config.router.brain}@${brainUrl}, upstream=${config.upstream.url})`)
 
   const shutdown = (signal) => {
     console.log(`jev-routerd: ${signal} received, shutting down`)

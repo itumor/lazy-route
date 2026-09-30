@@ -13,6 +13,13 @@ export const DEFAULT_CONFIG = Object.freeze({
     model: 'jev-router',
     timeoutMs: 8000,
   },
+  systemone: {
+    url: 'http://localhost:11434', // Ollama; /v1/systemone is appended
+    apiKey: '',                    // Ollama ignores auth; remote Jev-API endpoints may need it
+    model: 'nimble',               // ollama pull nimble (9B) — or tev1:4b / tev1:0.8b
+    timeoutMs: 30000,              // 17 questions × full questionnaire ≈ 5–10s warm on an M5; cold model loads are slower
+    keepAlive: '10m',              // keep the brain loaded between routing decisions
+  },
   upstream: {
     url: 'https://api.anthropic.com',
   },
@@ -21,7 +28,8 @@ export const DEFAULT_CONFIG = Object.freeze({
     port: 38471,
   },
   router: {
-    strategy: 'chain', // chain | jev | heuristic
+    strategy: 'chain', // chain | jev | systemone | heuristic
+    brain: 'jev', // which brain 'chain' tries before the heuristic fallback: jev | systemone
     aliasModels: ['jev-router', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5', 'claude-fable-5-1'],
   },
   tiers: {
@@ -70,6 +78,14 @@ function envPatch(env) {
     if (!Number.isFinite(n) || n <= 0) throw new Error(`JEV_TIMEOUT_MS must be a positive number, got ${env.JEV_TIMEOUT_MS}`)
     put(['jev', 'timeoutMs'], n)
   }
+  put(['systemone', 'url'], env.JEV_SYSTEMONE_URL)
+  put(['systemone', 'apiKey'], env.JEV_SYSTEMONE_API_KEY)
+  put(['systemone', 'model'], env.JEV_SYSTEMONE_MODEL)
+  if (env.JEV_SYSTEMONE_TIMEOUT_MS !== undefined && env.JEV_SYSTEMONE_TIMEOUT_MS !== '') {
+    const n = Number(env.JEV_SYSTEMONE_TIMEOUT_MS)
+    if (!Number.isFinite(n) || n <= 0) throw new Error(`JEV_SYSTEMONE_TIMEOUT_MS must be a positive number, got ${env.JEV_SYSTEMONE_TIMEOUT_MS}`)
+    put(['systemone', 'timeoutMs'], n)
+  }
   put(['upstream', 'url'], env.JEV_UPSTREAM_URL)
   put(['daemon', 'host'], env.JEV_HOST)
   if (env.JEV_PORT !== undefined && env.JEV_PORT !== '') {
@@ -78,6 +94,7 @@ function envPatch(env) {
     put(['daemon', 'port'], n)
   }
   put(['router', 'strategy'], env.JEV_STRATEGY)
+  put(['router', 'brain'], env.JEV_BRAIN)
   if (env.JEV_ALIAS_MODELS) {
     put(['router', 'aliasModels'], env.JEV_ALIAS_MODELS.split(',').map((s) => s.trim()).filter(Boolean))
   }
@@ -107,8 +124,11 @@ export async function loadConfig(overrides = {}, env = process.env, homeDir = os
   let config = deepMerge(DEFAULT_CONFIG, loadFile(configPath))
   config = deepMerge(config, envPatch(env))
   config = deepMerge(config, overrides)
-  if (!['chain', 'jev', 'heuristic'].includes(config.router.strategy)) {
-    throw new Error(`router.strategy must be chain|jev|heuristic, got "${config.router.strategy}"`)
+  if (!['chain', 'jev', 'systemone', 'heuristic'].includes(config.router.strategy)) {
+    throw new Error(`router.strategy must be chain|jev|systemone|heuristic, got "${config.router.strategy}"`)
+  }
+  if (!['jev', 'systemone'].includes(config.router.brain)) {
+    throw new Error(`router.brain must be jev|systemone, got "${config.router.brain}"`)
   }
   return config
 }
@@ -117,5 +137,6 @@ export async function loadConfig(overrides = {}, env = process.env, homeDir = os
 export function redacted(config) {
   const clone = deepMerge({}, config)
   if (clone.jev && clone.jev.apiKey) clone.jev.apiKey = '***'
+  if (clone.systemone && clone.systemone.apiKey) clone.systemone.apiKey = '***'
   return clone
 }

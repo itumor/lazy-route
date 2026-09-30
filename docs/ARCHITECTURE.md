@@ -10,7 +10,9 @@ Prompt ──► JEV Router ──► { model_tier, effort } ──► upstream 
              │
              ├─ strategy "heuristic"  (local, deterministic, always available)
              ├─ strategy "jev"        (calls configured LLM endpoint with the questionnaire)
-             └─ strategy "chain"      (jev with heuristic fallback) ← default
+             ├─ strategy "systemone"  (local decision model via Ollama POST /v1/systemone:
+             │                         Nimble / Tev1 answer the questionnaire verbatim)
+             └─ strategy "chain"      (config.router.brain with heuristic fallback) ← default
 ```
 
 Tiers: `haiku` < `sonnet` < `opus` < `fable`. Efforts: `low` < `medium` < `high` < `xhigh` < `max`.
@@ -44,8 +46,9 @@ export { QUESTIONNAIRE }        // the routing questionnaire (see core/questionn
 export { TIERS, EFFORTS, TIER_ORDER, EFFORT_ORDER }
 export async function loadConfig(overrides = {}, env = process.env, homeDir = os.homedir()) -> Config
 export function heuristicRoute(request, context = {}, config = DEFAULT_CONFIG) -> Decision
-export async function jevRoute(request, context = {}, config = DEFAULT_CONFIG) -> Decision   // network call; throws on failure
-export async function route(request, context = {}, config = DEFAULT_CONFIG) -> Decision      // strategy from config.strategy, "chain" default: jevRoute, on error falls back to heuristicRoute
+export async function jevRoute(request, context = {}, config = DEFAULT_CONFIG) -> Decision        // network call; throws on failure
+export async function systemoneRoute(request, context = {}, config = DEFAULT_CONFIG) -> Decision  // POST {systemone.url}/v1/systemone; throws on failure
+export async function route(request, context = {}, config = DEFAULT_CONFIG) -> Decision      // strategy from config.router.strategy, "chain" default: brain = config.router.brain ("jev"|"systemone"), on error falls back to heuristicRoute
 export function tierModel(decision, config) -> string       // resolve tier → concrete model id
 export function effortParams(decision, config) -> object    // effort → request fields to merge (e.g. { thinking: {...} } or output_config)
 export function describeDecision(decision) -> string        // pretty multi-line explanation for /jev-explain
@@ -61,6 +64,13 @@ export function describeDecision(decision) -> string        // pretty multi-line
     model: "jev-router",               // JEV_MODEL — model used for the routing decision itself
     timeoutMs: 8000,                   // JEV_TIMEOUT_MS
   },
+  systemone: {
+    url: "http://localhost:11434",     // JEV_SYSTEMONE_URL — /v1/systemone is appended
+    apiKey: "",                        // JEV_SYSTEMONE_API_KEY (Ollama ignores it; redacted from /jev/status)
+    model: "nimble",                   // JEV_SYSTEMONE_MODEL — decision model id (nimble, tev1:4b, tev1:0.8b)
+    timeoutMs: 30000,                  // JEV_SYSTEMONE_TIMEOUT_MS (17 qs × rubric ≈ 5–10s warm on an M5)
+    keepAlive: "10m",                  // keep_alive hint so the brain stays loaded between decisions
+  },
   upstream: {
     url: "https://api.anthropic.com",  // JEV_UPSTREAM_URL — where routed requests go
   },
@@ -69,7 +79,8 @@ export function describeDecision(decision) -> string        // pretty multi-line
     port: 38471,                        // JEV_PORT
   },
   router: {
-    strategy: "chain",                  // JEV_STRATEGY: chain | jev | heuristic
+    strategy: "chain",                  // JEV_STRATEGY: chain | jev | systemone | heuristic
+    brain: "jev",                       // JEV_BRAIN: brain "chain" tries first — jev | systemone
     aliasModels: ["jev-router"],        // model ids that trigger interception (JEV_ALIAS_MODELS, comma-separated)
   },
   tiers: {                              // tier → concrete upstream model id (JEV_TIER_HAIKU... env overrides)
@@ -88,11 +99,37 @@ export function describeDecision(decision) -> string        // pretty multi-line
 }
 ```
 
-Config file: `${JEV_CONFIG || ~/.jev/router.json}` (JSON, deep-merged over defaults). Local-model example:
+Config file: `${JEV_CONFIG || ~/.jev/router.json}` (JSON, deep-merged over defaults). Local-model examples:
 
-```json
+```jsonc
+// generic chat brain (OpenAI-compatible):
 { "jev": { "url": "http://localhost:11434/v1", "model": "qwen3:8b", "apiKey": "ollama" } }
+// decision-model brain (System One, recommended for local — typed answers, no JSON parsing):
+{ "router": { "brain": "systemone" }, "systemone": { "model": "nimble" } }
 ```
+
+### System One brain (core/systemone-client.mjs)
+
+Ollama 0.35+ serves decision models (Nimble 9B, Tev1 4B/0.8B) on
+`POST {url}/v1/systemone`, which implements TypeSafe's Jev question API — the
+*same* `{type, instructions, criteria}` schema as `core/questionnaire.mjs`.
+Request body: `{model, state, questions: QUESTIONNAIRE (verbatim, 17 ≤ 64 cap),
+keep_alive}`. `state` is the user prompt (truncated at 6000 chars to fit the
+8192-token per-question context), wrapped as `{request, context}` when context
+is non-empty.
+
+Answer mapping into policy signals:
+
+- `score` answers return `score`: the probability-weighted level on
+  `0..(criteria.length-1)` → normalized `score / (levels-1)` into 0..1.
+- `noul` answers return `noul`: p(true) → boolean signal at the ≥ 0.5 threshold.
+- `choice` answers (`model_tier`, `effort`) are validated against the option
+  labels and recorded in `reason` as `direct picks tier=… p=…, effort=…` —
+  **policy still owns the decision**; divergent direct picks are an
+  observability surface, not an override (reconciliation is future work).
+- Missing/malformed signal answers throw → `chain` falls back to heuristic.
+- Decision `confidence` = `confidenceFor(aggregate, tier)` attenuated by the
+  mean per-question answer confidence (`0.5 + 0.5·meanQConf` multiplier).
 
 ### Decision shape (must be JSON-serializable)
 
@@ -102,7 +139,7 @@ Config file: `${JEV_CONFIG || ~/.jev/router.json}` (JSON, deep-merged over defau
   effort: "medium",               // one of EFFORTS
   confidence: 0.82,               // 0..1
   strategy: "chain",              // strategy actually used
-  backend: "heuristic" | "jev",   // which brain produced it
+  backend: "heuristic" | "jev" | "systemone",   // which brain produced it
   signals: {                      // questionnaire scores, 0..1 each unless noted
     task_complexity: 0.4, ambiguity: 0.2, underspecified: false, high_stakes: false,
     requires_tools: true, tool_complexity: 0.4, execution_depth: 0.5, long_horizon: false,
@@ -125,7 +162,7 @@ effort = clamp(tierIndex + adjustment, low..max) where adjustment comes from exe
 
 ## daemon/jev-routerd.mjs — behavior contract
 
-- Listens on `config.daemon.host:port`; `--config`, `--port`, `--jev-url`, `--upstream-url` flags override.
+- Listens on `config.daemon.host:port`; `--config`, `--port`, `--jev-url`, `--systemone-url`, `--systemone-model`, `--brain`, `--upstream-url` flags override.
 - `GET /health` → 200 `{"ok":true, "version": ..., "strategy": ...}`
 - `GET /jev/status` → 200: config summary (secrets redacted: apiKey → `"***"` when set)
 - `POST /jev/route` `{ request, context? }` → 200 Decision JSON (dry run, no forwarding) — used by adapters + tests

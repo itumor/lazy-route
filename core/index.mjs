@@ -5,23 +5,31 @@ import { QUESTIONNAIRE, SIGNAL_KEYS } from './questionnaire.mjs'
 import { loadConfig, DEFAULT_CONFIG, redacted, deepMerge } from './config.mjs'
 import { heuristicRoute, heuristicSignals } from './heuristic.mjs'
 import { jevRoute } from './jev-client.mjs'
+import { systemoneRoute } from './systemone-client.mjs'
 import { TIERS, EFFORTS, TIER_ORDER, EFFORT_ORDER } from './policy.mjs'
 
 export { QUESTIONNAIRE, SIGNAL_KEYS }
 export { loadConfig, DEFAULT_CONFIG, redacted, deepMerge }
 export { heuristicRoute, heuristicSignals }
 export { jevRoute }
+export { systemoneRoute }
 export { TIERS, EFFORTS, TIER_ORDER, EFFORT_ORDER }
 export { decide, aggregate, WEIGHTS, TIER_THRESHOLDS, OVERRIDES, EFFORT_RULES } from './policy.mjs'
 
+// Network brains, by name. 'chain' tries config.router.brain first and falls
+// back to the heuristic; a bare strategy name pins that brain with no fallback.
+const BRAINS = { jev: jevRoute, systemone: systemoneRoute }
+
 export async function route(request, context = {}, config = DEFAULT_CONFIG) {
   const strategy = (config && config.router && config.router.strategy) || 'chain'
-  if (strategy === 'jev') return jevRoute(request, context, config)
   if (strategy === 'heuristic') return heuristicRoute(request, context, config)
-  // chain: try the brain, fall back to the deterministic heuristic.
+  if (BRAINS[strategy]) return BRAINS[strategy](request, context, config)
+  // chain: try the configured brain, fall back to the deterministic heuristic.
+  const brainName = (config && config.router && config.router.brain) || 'jev'
+  const brain = BRAINS[brainName] || jevRoute
   try {
-    const decision = await jevRoute(request, context, config)
-    return { ...decision, strategy: 'chain', backend: 'jev' }
+    const decision = await brain(request, context, config)
+    return { ...decision, strategy: 'chain', backend: brainName }
   } catch (err) {
     const fallback = heuristicRoute(request, context, config)
     return {

@@ -1,0 +1,198 @@
+[
+  {
+    "model": "nimble:latest",
+    "accuracy": 93.33333333333333,
+    "latency_mean_ms": 496.2731277337298,
+    "latency_median_ms": 494.4852080079727,
+    "rows": [
+      [
+        "ticket-duplicate-charge",
+        "{\"intent\": \"duplicate_charge\"}",
+        "{\"intent\": \"duplicate_charge\"}",
+        true
+      ],
+      [
+        "ticket-bug-vs-billing",
+        "{\"label\": \"bug\"}",
+        "{\"label\": \"bug\"}",
+        true
+      ],
+      [
+        "policy-return-in-window",
+        "{\"eligible\": true}",
+        "{\"eligible\": true}",
+        true
+      ],
+      [
+        "policy-return-late",
+        "{\"eligible\": false}",
+        "{\"eligible\": false}",
+        true
+      ],
+      [
+        "moderation-destructive",
+        "{\"harm\": true}",
+        "{\"harm\": true}",
+        true
+      ],
+      [
+        "moderation-benign",
+        "{\"harm\": false}",
+        "{\"harm\": false}",
+        true
+      ],
+      [
+        "entailment-supports",
+        "{\"relation\": \"supports\"}",
+        "{\"relation\": \"supports\"}",
+        true
+      ],
+      [
+        "entailment-contradicts",
+        "{\"relation\": \"contradicts\"}",
+        "{\"relation\": \"contradicts\"}",
+        true
+      ],
+      [
+        "boolq-photosynthesis",
+        "{\"answer\": true}",
+        "{\"answer\": true}",
+        true
+      ],
+      [
+        "news-classification",
+        "{\"category\": \"business\"}",
+        "{\"category\": \"business\"}",
+        true
+      ],
+      [
+        "model-routing-complex",
+        "{\"model\": \"large\"}",
+        "{\"model\": \"large\"}",
+        true
+      ],
+      [
+        "policy-routing-p1",
+        "{\"route\": \"oncall-engineer\"}",
+        "{\"route\": \"oncall-engineer\"}",
+        true
+      ],
+      [
+        "score-urgency-outage",
+        "{\"urgency\": 2}",
+        "{\"urgency\": 2}",
+        true
+      ],
+      [
+        "score-sentiment-negative",
+        "{\"sentiment\": 1}",
+        "{\"sentiment\": 0}",
+        false
+      ],
+      [
+        "phishing-suspicious",
+        "{\"phishing\": true}",
+        "{\"phishing\": true}",
+        true
+      ]
+    ]
+  },
+  {
+    "model": "tev1:0.8b",
+    "accuracy": 86.66666666666667,
+    "latency_mean_ms": 60.35251953095819,
+    "latency_median_ms": 61.363749991869554,
+    "rows": [
+      [
+        "ticket-duplicate-charge",
+        "{\"intent\": \"duplicate_charge\"}",
+        "{\"intent\": \"duplicate_charge\"}",
+        true
+      ],
+      [
+        "ticket-bug-vs-billing",
+        "{\"label\": \"bug\"}",
+        "{\"label\": \"bug\"}",
+        true
+      ],
+      [
+        "policy-return-in-window",
+        "{\"eligible\": true}",
+        "{\"eligible\": true}",
+        true
+      ],
+      [
+        "policy-return-late",
+        "{\"eligible\": false}",
+        "{\"eligible\": false}",
+        true
+      ],
+      [
+        "moderation-destructive",
+        "{\"harm\": true}",
+        "{\"harm\": false}",
+        false
+      ],
+      [
+        "moderation-benign",
+        "{\"harm\": false}",
+        "{\"harm\": false}",
+        true
+      ],
+      [
+        "entailment-supports",
+        "{\"relation\": \"supports\"}",
+        "{\"relation\": \"supports\"}",
+        true
+      ],
+      [
+        "entailment-contradicts",
+        "{\"relation\": \"contradicts\"}",
+        "{\"relation\": \"contradicts\"}",
+        true
+      ],
+      [
+        "boolq-photosynthesis",
+        "{\"answer\": true}",
+        "{\"answer\": true}",
+        true
+      ],
+      [
+        "news-classification",
+        "{\"category\": \"business\"}",
+        "{\"category\": \"business\"}",
+        true
+      ],
+      [
+        "model-routing-complex",
+        "{\"model\": \"large\"}",
+        "{\"model\": \"large\"}",
+        true
+      ],
+      [
+        "policy-routing-p1",
+        "{\"route\": \"oncall-engineer\"}",
+        "{\"route\": \"oncall-engineer\"}",
+        true
+      ],
+      [
+        "score-urgency-outage",
+        "{\"urgency\": 2}",
+        "{\"urgency\": 2}",
+        true
+      ],
+      [
+        "score-sentiment-negative",
+        "{\"sentiment\": 1}",
+        "{\"sentiment\": 0}",
+        false
+      ],
+      [
+        "phishing-suspicious",
+        "{\"phishing\": true}",
+        "{\"phishing\": true}",
+        true
+      ]
+    ]
+  }
+]

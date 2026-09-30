@@ -134,8 +134,8 @@ test('e. jev-codex spawns codex with the routed model', async (t) => {
   stub.stop()
   assert.equal(result.status, 0, result.stderr)
   const args = readFileSync(codexArgs, 'utf8')
-  assert.match(args, /^-m claude-opus-4-5 build the thing/) // tier opus → default tier map
-  assert.match(result.stderr, /tier=opus effort=high.*→ claude-opus-4-5/)
+  assert.match(args, /^-m claude-opus-5-5 build the thing/) // tier opus → default tier map
+  assert.match(result.stderr, /tier=opus effort=high.*→ claude-opus-5-5/)
 })
 
 // (f) jev-claude injects ANTHROPIC_* env into the claude child (--no-spawn against stub)

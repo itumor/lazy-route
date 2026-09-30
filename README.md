@@ -34,13 +34,26 @@ rewritten to `haiku-4-5` on the wire for a trivial prompt; client-sent
 `thinking` blocks are preserved by design. Full notes:
 `docs/CLAUDE-REAL-BINARY-NOTES.md`.
 
-**Claude Desktop Code tab: NOT routable today** (verified Desktop 2.16120.0,
-bundled claude 2.1.284). Desktop spawns every local session with
-`ANTHROPIC_BASE_URL=https://api.anthropic.com`, and the bundled CLI lets
-host-spawn env win over *every* settings scope (user, `--settings`, managed).
-The `ANTHROPIC_BASE_URL` the installer writes is silently dropped and the
-"JEV Router" row never appears in the Desktop picker. Only Desktop's
-org-managed 3P/gateway mode can change the spawn URL. Use the CLI launcher.
+**Claude Desktop Code tab: routable in 3P gateway mode only** (verified
+Desktop 2.16120.0, bundled claude 2.1.284). In claude.ai (1P) mode Desktop
+spawns every local session with `ANTHROPIC_BASE_URL=https://api.anthropic.com`
+and host-spawn env beats every settings scope, so `settings.json` is ignored.
+In **3P gateway mode** Desktop spawns sessions with
+`ANTHROPIC_BASE_URL=<inferenceGatewayBaseUrl>` — point that at the daemon:
+
+1. Desktop menu: **Enable Developer Mode…**, then **Configure Third-Party Inference…**
+2. Inference provider **Gateway**; Gateway base URL `http://127.0.0.1:38471`
+   (loopback http is accepted)
+3. Gateway auth scheme **x-api-key**; Gateway API key = your Anthropic Console
+   key (`sk-ant-api…`); the daemon forwards it untouched
+4. Model list: `jev-router` first, then any real ids you want listed
+   (`node adapters/claude-desktop/install.mjs --dry-run` prints yours)
+5. Apply and relaunch; the Code tab picker shows `jev-router`
+
+Trade-offs: 3P mode bills your API key, not your claude.ai plan, and switches
+the whole Desktop app out of claude.ai sign-in. Daemon must be running, or
+Code sessions fail. Every aliased id in the list gets routed too, so picking
+"Opus" can still land on Haiku.
 
 ## Quickstart
 
@@ -52,8 +65,8 @@ node daemon/jev-routerd.mjs                # http://127.0.0.1:38471
 node adapters/claude-cli/jev-claude.mjs
 #    → Claude opens with a "JEV Router" model option; pick it once.
 
-# 2b. settings.json installer — routes terminal `claude` sessions only;
-#     Claude Desktop ignores it (see "Claude compatibility" above)
+# 2b. settings.json installer — routes terminal `claude` sessions; also prints
+#     the Desktop 3P gateway values (see "Claude compatibility" above)
 node adapters/claude-desktop/install.mjs --dry-run
 node adapters/claude-desktop/install.mjs
 
@@ -124,7 +137,7 @@ and `adapters/` (claude-cli, claude-desktop, codex, dsh) plus `plugin/`
 ## Roadmap
 
 - [x] Claude Code CLI (loopback proxy)
-- [ ] Claude Code Desktop — local sessions (blocked: Desktop pins the spawn URL; settings env dropped)
+- [x] Claude Code Desktop — local sessions via 3P gateway mode (spawn-env E2E green; Setup-panel click-through with a real key pending)
 - [x] Codex CLI (launch-time decision)
 - [x] DeepSeek Harness (in-band Cordis plugin, kimchi-routed)
 - [ ] Claude Desktop `.mcpb` extension (config UX + encrypted key storage)

@@ -66,6 +66,7 @@ async function main() {
   if (flags.dryRun) {
     console.log('--- dry run: would write ' + settingsPath + ' ---')
     console.log(JSON.stringify(next, null, 2))
+    if (!flags.uninstall) for (const line of desktopEnvInstructions(config)) console.log(line)
     return
   }
 

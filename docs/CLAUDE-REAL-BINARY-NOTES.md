@@ -82,6 +82,20 @@ Also fixed from this run: Claude Code puts KBs of `<system-reminder>` blocks in
 the user turn; the daemon now strips them before routing (before the fix,
 "say hi" routed as `opus/high`).
 
+## CLI launcher (verified 2026-09-30, claude 2.1.285)
+
+`adapters/claude-cli/jev-claude.mjs` end-to-end, real binary:
+
+- Loopback stub: `--model claude-opus-4-5` + "say hi" → wire `claude-haiku-4-5`;
+  hard auth-rotation prompt → stays `claude-opus-4-5`; `--model jev-router` →
+  wire `claude-haiku-4-5`; `--model claude-opus-5-5` (not aliased) → passthrough.
+- Real api.anthropic.com, subscription OAuth via loopback: `--model jev-router`
+  "say hi" → exit 0, API-reported model `claude-haiku-4-5-20251001`.
+- **Alias reaches the wire again in 2.1.285.** `[claude-code:unrecognized_model]`
+  still prints, but the request carries `jev-router` (2.1.278 substituted it).
+- Terminal `claude` (non-host) applies `~/.claude/settings.json` env *over* the
+  launcher's process env, so a settings `ANTHROPIC_BASE_URL` wins over `JEV_PORT`.
+
 ## Open verification items
 
 - Interactive CLI picker row created by `ANTHROPIC_CUSTOM_MODEL_OPTION`.

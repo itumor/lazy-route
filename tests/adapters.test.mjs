@@ -7,7 +7,7 @@ import path from 'node:path'
 import os from 'node:os'
 import { execFileSync, spawnSync, spawn } from 'node:child_process'
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync, chmodSync } from 'node:fs'
-import { desktopEnv, desktopEnvInstructions, DESKTOP_KEYS } from '../adapters/claude-desktop/config.mjs'
+import { desktopEnv, desktopEnvInstructions, desktopGateway, DESKTOP_KEYS } from '../adapters/claude-desktop/config.mjs'
 import { healthCheck } from '../adapters/lib/ensure-daemon.mjs'
 
 // NOTE on E2E topology: in this sandbox a socket listener must live in its own
@@ -67,6 +67,16 @@ test('a. desktopEnv returns the exact env block', () => {
   assert.ok(Object.keys(env).every((k) => k.startsWith('ANTHROPIC_')))
   const instructions = desktopEnvInstructions({ daemon: { host: '127.0.0.1', port: 40000 } })
   assert.ok(instructions.some((l) => l.includes('Code tab')))
+})
+
+// (a2) desktopGateway: 3P values Desktop accepts; jev-router first, no dupes, no key
+test('a2. desktopGateway returns Desktop 3P gateway values', () => {
+  const gw = desktopGateway({ daemon: { host: '127.0.0.1', port: 40000 }, router: { aliasModels: ['claude-opus-5-5', 'jev-router'] } })
+  assert.equal(gw.inferenceProvider, 'gateway')
+  assert.equal(gw.inferenceGatewayBaseUrl, 'http://127.0.0.1:40000')
+  assert.equal(gw.inferenceGatewayAuthScheme, 'x-api-key')
+  assert.deepEqual(gw.inferenceModels, ['jev-router', 'claude-opus-5-5'])
+  assert.ok(!('inferenceGatewayApiKey' in gw))
 })
 
 // (b) install --dry-run preserves unrelated keys and shows the merged env

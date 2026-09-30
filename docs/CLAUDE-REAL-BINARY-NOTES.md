@@ -54,7 +54,7 @@ JEV_ALIAS_MODELS="${JEV_ALIAS_MODELS:-claude-opus-4-5,claude-sonnet-4-5,claude-h
 
 ## Claude Desktop (verified 2026-09-30, Desktop 2.16120.0, bundled claude 2.1.284)
 
-**Result: Code-tab local sessions cannot be routed via settings.** Evidence:
+**Result: in 1P (claude.ai) mode, Code-tab local sessions cannot be routed via settings.** Evidence:
 
 1. Live Desktop session env: `ANTHROPIC_BASE_URL=https://api.anthropic.com`,
    `CLAUDE_CODE_ENTRYPOINT=claude-desktop`, `--model claude-opus-5-5` — while
@@ -78,6 +78,33 @@ JEV_ALIAS_MODELS="${JEV_ALIAS_MODELS:-claude-opus-4-5,claude-sonnet-4-5,claude-h
 5. Desktop model picker (`set_session_model` valid-id list) has no `jev-router`
    row even though `ANTHROPIC_CUSTOM_MODEL_OPTION` reaches the session env.
 
+### 3P gateway mode works (verified 2026-09-30, same Desktop/CLI versions)
+
+Desktop's `app.asar`: `apiHostOverride()` returns `inferenceGatewayBaseUrl`
+when `inferenceProvider: "gateway"`, and the spawn env takes it as
+`ANTHROPIC_BASE_URL`. The URL validator allows `http://` on loopback. Setup is
+user-writable (menu *Configure Third-Party Inference…*, stored under
+`configLibrary/`), not MDM-only. Gateway mode uses `inferenceModels` or
+`<baseUrl>/v1/models` for the picker, so `jev-router` can be listed.
+
+Real-binary E2E, bundled claude 2.1.284 with the gateway spawn env
+(`CLAUDE_CODE_ENTRYPOINT=claude-desktop`, `ANTHROPIC_BASE_URL=<daemon>`,
+`ANTHROPIC_API_KEY`, `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1`) → daemon → stub:
+
+| Picked | Prompt | Wire model |
+|--------|--------|------------|
+| `jev-router` | "say hi" | `claude-haiku-4-5` |
+| `claude-opus-5-5` | "say hi" | `claude-haiku-4-5` |
+| `jev-router` | zero-downtime OAuth/TLS rotation | `claude-opus-5-5` |
+
+`x-api-key` reached upstream on every call. Picking `jev-router` prints
+`"jev-router" isn't described by this version's model catalog` and assumes a
+200k context window; harmless.
+
+Dead end: the Desktop corporate launcher (`processWrapper` /
+`CLAUDE_CODE_PROCESS_WRAPPER`, gated by `claudeCodeProcessWrapperEnabled`) is
+3P-only for now (`1p: "@next"`) and MDM-deployed only.
+
 Also fixed from this run: Claude Code puts KBs of `<system-reminder>` blocks in
 the user turn; the daemon now strips them before routing (before the fix,
 "say hi" routed as `opus/high`).
@@ -98,6 +125,7 @@ the user turn; the daemon now strips them before routing (before the fix,
 
 ## Open verification items
 
+- Desktop 3P Setup panel click-through with a real Console key (picker row, first turn).
 - Interactive CLI picker row created by `ANTHROPIC_CUSTOM_MODEL_OPTION`.
 - A future `router.interceptMode: "user-turn"` in the daemon to route any
   fresh user turn without aliasing (identify turns whose final message is a

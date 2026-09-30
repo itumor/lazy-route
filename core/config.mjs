@@ -22,13 +22,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
   router: {
     strategy: 'chain', // chain | jev | heuristic
-    aliasModels: ['jev-router', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'],
+    aliasModels: ['jev-router', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5', 'claude-fable-5-1'],
   },
   tiers: {
-    haiku: 'claude-haiku-5-5',
+    haiku: 'claude-haiku-4-5',
     sonnet: 'claude-sonnet-5-5',
     opus: 'claude-opus-5-5',
-    fable: 'claude-opus-5-5', // frontier slot; maps to strongest until a dedicated model exists
+    fable: 'claude-fable-5-1',
   },
   effortMap: {
     low: { thinking: { type: 'enabled', budget_tokens: 1024 } },

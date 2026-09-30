@@ -74,9 +74,9 @@ export function describeDecision(decision) -> string        // pretty multi-line
   },
   tiers: {                              // tier → concrete upstream model id (JEV_TIER_HAIKU... env overrides)
     haiku: "claude-haiku-4-5",
-    sonnet: "claude-sonnet-4-5",
-    opus: "claude-opus-4-5",
-    fable: "claude-opus-4-5",           // frontier slot; maps to strongest until a dedicated model exists
+    sonnet: "claude-sonnet-5-5",
+    opus: "claude-opus-5-5",
+    fable: "claude-fable-5-1",
   },
   effortMap: {                          // effort → Anthropic request fields
     low:    { thinking: { type: "enabled", budget_tokens: 1024 } },

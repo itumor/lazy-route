@@ -118,7 +118,7 @@ test('4. alias model is intercepted: upstream sees concrete model + merged think
 
     assert.equal(upstream.captured.length, 1)
     const forwarded = JSON.parse(upstream.captured[0].body.toString('utf8'))
-    assert.equal(forwarded.model, 'claude-haiku-5-5') // rewritten from jev-router
+    assert.equal(forwarded.model, 'claude-haiku-4-5') // rewritten from jev-router
     assert.equal(forwarded.thinking.type, 'enabled')
     assert.equal(forwarded.thinking.budget_tokens, 1024) // effortParams merged
     assert.equal(forwarded.max_tokens, 100)
@@ -140,7 +140,7 @@ test('5. explicit client thinking block is never overwritten', async () => {
     })
     const forwarded = JSON.parse(upstream.captured[0].body.toString('utf8'))
     assert.equal(forwarded.thinking.budget_tokens, 7777) // client's own block wins
-    assert.equal(forwarded.model, 'claude-haiku-5-5')
+    assert.equal(forwarded.model, 'claude-haiku-4-5')
   } finally {
     await daemon.close(); await upstream.close()
   }
@@ -312,7 +312,7 @@ test('13. injected <system-reminder> blocks are ignored when routing (real claud
       ] }],
     })
     assert.equal(res.headers.get('x-jev-tier'), 'haiku') // routed on "say hi", not on the reminders
-    assert.equal(JSON.parse(upstream.captured[0].body.toString('utf8')).model, 'claude-haiku-5-5')
+    assert.equal(JSON.parse(upstream.captured[0].body.toString('utf8')).model, 'claude-haiku-4-5')
   } finally {
     await daemon.close(); await upstream.close()
   }

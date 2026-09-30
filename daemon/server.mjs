@@ -10,18 +10,23 @@ import { route, tierModel, effortParams, redacted, TIERS, EFFORTS } from '../cor
 
 const VERSION = '0.1.0'
 const HOP_BY_HOP = new Set(['host', 'content-length', 'connection', 'keep-alive', 'transfer-encoding', 'upgrade'])
+// Claude Code injects KBs of <system-reminder> context (env, git, agent list) into the
+// user turn; routing on it scores every prompt as opus. Route on what the user typed.
+const SYSTEM_REMINDER = /<system-reminder>[\s\S]*?<\/system-reminder>/g
 
 function lastUserText(body) {
   const messages = Array.isArray(body && body.messages) ? body.messages : []
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]
     if (!m || m.role !== 'user') continue
-    if (typeof m.content === 'string') return m.content
+    if (typeof m.content === 'string') return m.content.replace(SYSTEM_REMINDER, '').trim()
     if (Array.isArray(m.content)) {
       return m.content
         .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
         .map((b) => b.text)
         .join('\n')
+        .replace(SYSTEM_REMINDER, '')
+        .trim()
     }
   }
   return ''

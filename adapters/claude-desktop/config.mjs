@@ -1,6 +1,6 @@
-// adapters/claude-desktop/config.mjs — env block + instructions for Claude Code Desktop.
-// Desktop local sessions share the CLI's env config; the env editor (Developer settings)
-// is the supported no-terminal way to apply this.
+// adapters/claude-desktop/config.mjs — env block + instructions for ~/.claude/settings.json.
+// Only terminal claude sessions honor it: Desktop's spawn env pins ANTHROPIC_BASE_URL
+// (docs/CLAUDE-REAL-BINARY-NOTES.md "Claude Desktop").
 
 export function desktopEnv(config) {
   const host = (config && config.daemon && config.daemon.host) || '127.0.0.1'
@@ -18,12 +18,11 @@ export function desktopEnvInstructions(config) {
   return [
     '1. Start the routing sidecar once:  node daemon/jev-routerd.mjs',
     '   (or install it as a login service: launchd/systemd unit pointing at the repo)',
-    '2. Claude Desktop → Settings → Developer → Environment variables (local sessions)',
-    `3. Add the printed env block (ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL} + the custom model option vars)`,
-    '4. Open the Code tab → model picker → select "JEV Router"',
-    '5. Type normally — every fresh turn is routed to the cheapest sufficient tier+effort',
-    'Note: the custom model option row in the Desktop picker is documented CLI parity',
-    'behavior; verify it renders in your Desktop version (fallback: use the CLI launcher).',
+    `2. Terminal \`claude\` sessions now use ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}`,
+    '3. Type normally — every fresh turn is routed to the cheapest sufficient tier+effort',
+    'WARNING: Claude Desktop (Code tab) ignores this. Desktop spawns sessions with',
+    'ANTHROPIC_BASE_URL=https://api.anthropic.com and host-spawn env beats settings.json',
+    '(verified Desktop 2.16120.0 / claude 2.1.284). Use the CLI launcher instead.',
   ]
 }
 

@@ -52,9 +52,38 @@ the known catalog ids rather than only `jev-router`:
 JEV_ALIAS_MODELS="${JEV_ALIAS_MODELS:-claude-opus-4-5,claude-sonnet-4-5,claude-haiku-4-5-20251001}" 
 ```
 
+## Claude Desktop (verified 2026-09-30, Desktop 2.16120.0, bundled claude 2.1.284)
+
+**Result: Code-tab local sessions cannot be routed via settings.** Evidence:
+
+1. Live Desktop session env: `ANTHROPIC_BASE_URL=https://api.anthropic.com`,
+   `CLAUDE_CODE_ENTRYPOINT=claude-desktop`, `--model claude-opus-5-5` — while
+   `~/.claude/settings.json` had `ANTHROPIC_BASE_URL=http://127.0.0.1:38471`.
+   `lsof` on the session pid: all API sockets to `160.79.104.10:443`, zero to 38471.
+2. Desktop app (`app.asar`) builds spawn env with `ANTHROPIC_BASE_URL: apiHost`,
+   hard-coded `https://api.anthropic.com` for production 1P accounts. Only the
+   3P provider's `apiHostOverride()` (`creds.baseUrl`, org-managed gateway mode)
+   changes it.
+3. Bundled CLI: when `CLAUDE_CODE_ENTRYPOINT` is a desktop host,
+   `hostSpawnEnvKeys = Object.keys(process.env)` and every settings source
+   (user, `--settings` flag, policy) is filtered against it — host env wins.
+4. Real-binary E2E (loopback stubs, real installer, real daemon):
+
+   | Case | `/v1/messages` went to |
+   |------|------------------------|
+   | `CLAUDE_CODE_ENTRYPOINT=claude-desktop` + installer settings.json | DIRECT (router bypassed) |
+   | same + `--settings '{"env":{"ANTHROPIC_BASE_URL":…}}'` | DIRECT (router bypassed) |
+   | `CLAUDE_CODE_ENTRYPOINT=cli` + installer settings.json | ROUTED, `claude-opus-4-5 → claude-haiku-4-5` |
+
+5. Desktop model picker (`set_session_model` valid-id list) has no `jev-router`
+   row even though `ANTHROPIC_CUSTOM_MODEL_OPTION` reaches the session env.
+
+Also fixed from this run: Claude Code puts KBs of `<system-reminder>` blocks in
+the user turn; the daemon now strips them before routing (before the fix,
+"say hi" routed as `opus/high`).
+
 ## Open verification items
 
-- Claude Code **Desktop** picker row visibility/behavior (manual check needed).
 - Interactive CLI picker row created by `ANTHROPIC_CUSTOM_MODEL_OPTION`.
 - A future `router.interceptMode: "user-turn"` in the daemon to route any
   fresh user turn without aliasing (identify turns whose final message is a

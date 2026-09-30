@@ -162,6 +162,10 @@ and `adapters/` (claude-cli, claude-desktop, codex, dsh) plus `plugin/`
 
 ## Roadmap
 
+> **Full improvement roadmap: [`docs/ROADMAP.md`](docs/ROADMAP.md)** — phased plan
+> (repo foundations → routing quality & observability → reach → distribution)
+> with priorities, effort estimates, and review findings.
+
 - [x] Claude Code CLI (loopback proxy)
 - [x] Claude Code Desktop — local sessions via 3P gateway mode (spawn-env E2E green; Setup-panel click-through with a real key pending)
 - [x] Codex CLI (launch-time decision)

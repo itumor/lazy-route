@@ -295,3 +295,25 @@ test('12. invalid JSON body on alias path → 400, no upstream hit', async () =>
     await daemon.close(); await upstream.close()
   }
 })
+
+test('13. injected <system-reminder> blocks are ignored when routing (real claude 2.1.284 shape)', async () => {
+  const { upstream, daemon } = await setup((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(jsonReply))
+  })
+  try {
+    const reminder = '<system-reminder>\n# Environment\n - This is a git worktree. Never use bare git stash / git stash pop; prefer a temporary WIP commit, restore with git stash apply <sha>, then drop the entry.\n</system-reminder>'
+    const res = await post(daemon.port, '/v1/messages', {
+      model: 'jev-router',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: reminder },
+        { type: 'text', text: '<system-reminder>Available agent types: Explore, Plan, security-auditor, code-reviewer</system-reminder>' },
+        { type: 'text', text: 'say hi' },
+      ] }],
+    })
+    assert.equal(res.headers.get('x-jev-tier'), 'haiku') // routed on "say hi", not on the reminders
+    assert.equal(JSON.parse(upstream.captured[0].body.toString('utf8')).model, 'claude-haiku-4-5')
+  } finally {
+    await daemon.close(); await upstream.close()
+  }
+})

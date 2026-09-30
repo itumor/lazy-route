@@ -32,7 +32,15 @@ dispatch — a bare `jev-router` alias does not reach the wire headlessly.
 and every turn gets re-routed. Verified: subscription default `opus-4-5` was
 rewritten to `haiku-4-5` on the wire for a trivial prompt; client-sent
 `thinking` blocks are preserved by design. Full notes:
-`docs/CLAUDE-REAL-BINARY-NOTES.md`. Desktop picker behavior is untested.
+`docs/CLAUDE-REAL-BINARY-NOTES.md`.
+
+**Claude Desktop Code tab: NOT routable today** (verified Desktop 2.16120.0,
+bundled claude 2.1.284). Desktop spawns every local session with
+`ANTHROPIC_BASE_URL=https://api.anthropic.com`, and the bundled CLI lets
+host-spawn env win over *every* settings scope (user, `--settings`, managed).
+The `ANTHROPIC_BASE_URL` the installer writes is silently dropped and the
+"JEV Router" row never appears in the Desktop picker. Only Desktop's
+org-managed 3P/gateway mode can change the spawn URL. Use the CLI launcher.
 
 ## Quickstart
 
@@ -44,10 +52,10 @@ node daemon/jev-routerd.mjs                # http://127.0.0.1:38471
 node adapters/claude-cli/jev-claude.mjs
 #    → Claude opens with a "JEV Router" model option; pick it once.
 
-# 2b. Claude Code Desktop — merge the env block into settings
+# 2b. settings.json installer — routes terminal `claude` sessions only;
+#     Claude Desktop ignores it (see "Claude compatibility" above)
 node adapters/claude-desktop/install.mjs --dry-run
 node adapters/claude-desktop/install.mjs
-#    → open Desktop → Code tab → select model "JEV Router".
 
 # 2c. Codex — one routing decision per launch
 node adapters/codex/jev-codex.mjs "migrate the test suite to vitest"
@@ -116,7 +124,7 @@ and `adapters/` (claude-cli, claude-desktop, codex, dsh) plus `plugin/`
 ## Roadmap
 
 - [x] Claude Code CLI (loopback proxy)
-- [x] Claude Code Desktop — local sessions (env editor + settings installer)
+- [ ] Claude Code Desktop — local sessions (blocked: Desktop pins the spawn URL; settings env dropped)
 - [x] Codex CLI (launch-time decision)
 - [x] DeepSeek Harness (in-band Cordis plugin, kimchi-routed)
 - [ ] Claude Desktop `.mcpb` extension (config UX + encrypted key storage)
